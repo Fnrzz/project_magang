@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
-});
+})->name('home');
 
 Route::get('/upload', [CsvController::class, 'upload'])->name('csv.upload');
 Route::post('/upload', [CsvController::class, 'import'])->name('csv.import');
