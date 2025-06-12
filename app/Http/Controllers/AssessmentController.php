@@ -2,91 +2,93 @@
 
 namespace App\Http\Controllers;
 
+use App\Imports\AdipuraImport;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AssessmentController extends Controller
 {
-    private function getSubkomponenData()
-    {
-        // Ambil data dari session yang disimpan oleh CsvController
-        $sessionData = session('subkomponen_data');
-        
-        if ($sessionData) {
-            return $sessionData;
-        } else {
-            // Jika tidak ada data di session, kembalikan array kosong
-            return [];
-        }
-    }
-
     public function index()
     {
-        $subkomponenData = $this->getSubkomponenData();
-        return view('assessment', compact('subkomponenData'));
+        // Reset semua session saat halaman dimuat (sesuai requirement)
+        session()->forget(['nilaiOrisinalAdipura', 'nilaiKoreksiAdipura', 'file_uploaded_adipura']);
+        return view('assessment');
     }
 
-    public function getSubkomponenOptions()
+    public function uploadAdipura(Request $request)
     {
-        $subkomponenData = $this->getSubkomponenData();
-        return response()->json([
-            'success' => true,
-            'data' => $subkomponenData
-        ]);
-    }
-
-    public function calculate(Request $request)
-    {
+        // Validasi file Excel saja
         $request->validate([
-            'input1' => 'required|numeric|min:1|max:100',
-            'input2' => 'required|numeric|min:1|max:100', 
-            'input3' => 'required|numeric|min:1|max:100',
-            'subkomponen' => 'required|string',
-            'koreksi' => 'required|in:koreksi,belum_koreksi'
+            'file_adipura' => 'required|file|mimes:xls,xlsx|max:10240'
         ]);
 
-        // Hitung rata-rata dari 3 angka
-        $average = ($request->input1 + $request->input2 + $request->input3) / 3;
+        try {
+            $array = Excel::toArray(new AdipuraImport, $request->file('file_adipura'));
 
-        // Ambil data subkomponen untuk mendapatkan bobot
-        $subkomponenData = $this->getSubkomponenData();
-        $selectedSubkomponen = null;
-        
-        foreach ($subkomponenData as $data) {
-            if ($data['subkomponen'] === $request->subkomponen) {
-                $selectedSubkomponen = $data;
-                break;
+            // Pastikan data array tidak kosong dan memiliki struktur yang benar
+            if (empty($array) || empty($array[0]) || !isset($array[0][25])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Format file Excel tidak sesuai atau data pada baris 26 tidak ditemukan'
+                ]);
             }
-        }
 
-        if (!$selectedSubkomponen) {
+            // Ambil nilai dari cell L26 dan M26 (row 26 = index 25, kolom L=11 dan M=12 dalam 0-based index)
+            $nilaiOrisinal = isset($array[0][26][11]) && $array[0][26][11] !== null
+                ? number_format(floatval($array[0][26][11]), 2, '.', '')
+                : '67.00';
+            $nilaiKoreksi = isset($array[0][26][12]) && $array[0][26][12] !== null
+                ? number_format(floatval($array[0][26][12]), 2, '.', '')
+                : '69.00';
+
+            // Simpan nilai ke session terpisah sesuai requirement
+            session([
+                'nilaiOrisinalAdipura' => $nilaiOrisinal,
+                'nilaiKoreksiAdipura' => $nilaiKoreksi,
+                'file_uploaded_adipura' => true
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'File berhasil diupload dan nilai berhasil disimpan!',
+            ]);
+
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Subkomponen tidak ditemukan'
-            ], 400);
+                'message' => 'Gagal memproses file Excel: ' . $e->getMessage()
+            ]);
         }
+    }
 
-        // Tentukan persentase berdasarkan status koreksi dan data dari CSV
-        if ($request->koreksi === 'belum_koreksi') {
-            $percentage = $selectedSubkomponen['bobotsubkomponen'];
-        } else {
-            $percentage = $selectedSubkomponen['bobotsubkomponenkoreksi'];
+    public function calculateOrisinalAdipura()
+    {
+
+        if (!session('nilaiOrisinalAdipura') || !session('file_uploaded_adipura')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File Excel belum diupload!'
+            ]);
         }
-
-        // Hitung hasil akhir
-        $finalScore = $average * $percentage;
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'input1' => $request->input1,
-                'input2' => $request->input2,
-                'input3' => $request->input3,
-                'average' => round($average, 2),
-                'percentage' => $percentage * 100,
-                'finalScore' => round($finalScore, 2),
-                'subkomponen' => $request->subkomponen,
-                'koreksi' => $request->koreksi
-            ]
+            'nilai' => session('nilaiOrisinalAdipura')
+        ]);
+    }
+
+    public function calculateKoreksiAdipura()
+    {
+        if (!session('file_uploaded_adipura')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File Excel belum diupload!'
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'nilai' => session('nilaiKoreksiAdipura')
         ]);
     }
 }
