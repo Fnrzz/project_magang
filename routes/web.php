@@ -1,16 +1,15 @@
 <?php
 
 use App\Http\Controllers\AssessmentController;
-use App\Http\Controllers\CsvController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::get('/upload', [CsvController::class, 'upload'])->name('csv.upload');
-Route::post('/upload', [CsvController::class, 'import'])->name('csv.import');
-
-Route::get('/assessment', [AssessmentController::class, 'index'])->name('assessment.index');
-Route::get('/assessment/subkomponen', [AssessmentController::class, 'getSubkomponenOptions'])->name('assessment.subkomponen');
-Route::post('/assessment', [AssessmentController::class, 'calculate'])->name('assessment.calculate');
+Route::prefix('assessment')->group(function () {
+    Route::get('/', [AssessmentController::class, 'index'])->name('assessment.index');
+    Route::post('/upload-adipura', [AssessmentController::class, 'uploadAdipura'])->name('assessment.upload.adipura');
+    Route::get('/calculate-orisinal-adipura', [AssessmentController::class, 'calculateOrisinalAdipura'])->name('assessment.calculate.orisinal');
+    Route::get('/calculate-koreksi-adipura', [AssessmentController::class, 'calculateKoreksiAdipura'])->name('assessment.calculate.koreksi');
+});
