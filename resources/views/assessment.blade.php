@@ -9,13 +9,19 @@
             <h6 class="col-2 text-center p-3 border bg-primary text-white rounded-2">Adipura</h6>
             <div class="row row-cols-4 text-center align-items-center">
                 <div class="col d-flex flex-column gap-3">
-                    {{-- Upload File Button --}}
-                    <form action="{{ route('assessment.upload.adipura') }}" method="POST" enctype="multipart/form-data" id="uploadAdipuraForm" class="d-flex flex-column gap-2">
+                    <form action="{{ route('assessment.upload.adipura') }}" method="POST" enctype="multipart/form-data"
+                        id="uploadAdipuraForm">
                         @csrf
-                        <input type="file" name="file_adipura" id="adipuraFileInput" accept=".xls,.xlsx">
-                        <button type="submit" id="uploadAdipuraBtn" class="btn {{ session('file_uploaded_adipura') ? 'btn-success' : 'btn-outline-primary' }}" {{ session('file_uploaded_adipura') ? 'disabled' : '' }}>
-                            {{ session('file_uploaded_adipura') ? 'File is ready' : 'Upload File' }}
-                        </button>
+                        <input type="file" name="file_adipura" id="adipuraFileInput" accept=".xls,.xlsx"
+                            style="display: none;">
+
+                        <div class="d-grid">
+                            <button type="button" id="uploadAdipuraBtn"
+                                class="btn {{ session('file_uploaded_adipura') ? 'btn-success' : 'btn-outline-primary' }}"
+                                {{ session('file_uploaded_adipura') ? 'disabled' : '' }}>
+                                {{ session('file_uploaded_adipura') ? 'File is ready' : 'Upload File' }}
+                            </button>
+                        </div>
                     </form>
 
                     {{-- Hitung Adipura Button --}}
@@ -23,7 +29,8 @@
                 </div>
                 <div class="col">
                     <h6 class="text-center mb-4">Nilai Orisinal (Skema Adipura)</h6>
-                    <div id="nilaiOrisinal" class="d-flex justify-content-center align-items-center p-2 border border-secondary rounded-2">
+                    <div id="nilaiOrisinal"
+                        class="d-flex justify-content-center align-items-center p-2 border border-secondary rounded-2">
                         67
                     </div>
                 </div>
@@ -35,7 +42,8 @@
                 </div>
                 <div class="col">
                     <h6 class="text-center mb-4">Nilai Koreksi (Skema NT)</h6>
-                    <div id="nilaiKoreksi" class="d-flex justify-content-center align-items-center p-2 border border-secondary bg-primary-subtle rounded-2">
+                    <div id="nilaiKoreksi"
+                        class="d-flex justify-content-center align-items-center p-2 border border-secondary bg-primary-subtle rounded-2">
                         69
                     </div>
                 </div>
@@ -106,7 +114,7 @@
 @section('scripts')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script type="text/javascript">
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const hitungAdipuraBtn = document.getElementById('hitungAdipuraBtn');
             const hitungAdipuraNTBtn = document.getElementById('hitungAdipuraNTBtn');
             const nilaiOrisinal = document.getElementById('nilaiOrisinal');
@@ -115,100 +123,84 @@
             const uploadAdipuraBtn = document.getElementById('uploadAdipuraBtn');
             const adipuraFileInput = document.getElementById('adipuraFileInput');
 
-            // Upload file ketika button Upload File diklik
-            uploadAdipuraBtn.addEventListener('click', function (event) {
-                event.preventDefault();
-                
-                // Jika button sudah berubah menjadi "File is ready", jangan lakukan apa-apa
-                if (uploadAdipuraBtn.textContent.trim() === 'File is ready') {
-                    return;
-                }
-                
-                // Trigger file input dialog
+            uploadAdipuraBtn.addEventListener('click', function() {
                 adipuraFileInput.click();
             });
 
-            // Handle file selection
-            adipuraFileInput.addEventListener('change', function (event) {
+            adipuraFileInput.addEventListener('change', function(event) {
                 const file = event.target.files[0];
                 if (file) {
-                    // Validate file type
                     const allowedExtensions = ['xls', 'xlsx'];
                     const fileExtension = file.name.split('.').pop().toLowerCase();
-                    
+
                     if (!allowedExtensions.includes(fileExtension)) {
                         alert('File harus berformat Excel (.xls atau .xlsx)');
                         adipuraFileInput.value = '';
                         return;
                     }
 
-                    // Upload file via AJAX
                     const formData = new FormData(uploadAdipuraForm);
-                    
+
+                    uploadAdipuraBtn.textContent = 'Uploading...';
+                    uploadAdipuraBtn.disabled = true;
+
                     fetch(uploadAdipuraForm.action, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            uploadAdipuraBtn.textContent = 'File is ready';
-                            uploadAdipuraBtn.classList.add('btn-success');
-                            uploadAdipuraBtn.classList.remove('btn-outline-primary');
-                            uploadAdipuraBtn.disabled = true;
-                            alert('File berhasil diupload!');
-                        } else {
-                            alert('File upload failed: ' + data.message);
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    .getAttribute('content')
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                uploadAdipuraBtn.textContent = 'File is ready';
+                                uploadAdipuraBtn.classList.add('btn-success');
+                                uploadAdipuraBtn.classList.remove('btn-outline-primary');
+                                alert('File berhasil diupload!');
+                            } else {
+                                alert('File upload failed: ' + data.message);
+                                uploadAdipuraBtn.textContent = 'Upload File';
+                                uploadAdipuraBtn.disabled = false;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Terjadi kesalahan saat mengupload file');
+                            uploadAdipuraBtn.textContent = 'Upload File';
+                            uploadAdipuraBtn.disabled = false;
+                        })
+                        .finally(() => {
                             adipuraFileInput.value = '';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Terjadi kesalahan saat mengupload file');
-                        adipuraFileInput.value = '';
-                    });
+                        });
                 }
             });
 
-            // Ketika button Hitung Adipura diklik, ambil nilai dari session nilaiOrisinalAdipura
-            hitungAdipuraBtn.addEventListener('click', function () {
-                fetch('{{ route('assessment.calculate.orisinal') }}', {
-                    method: 'GET',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        nilaiOrisinal.textContent = data.nilai;
-                    } else {
-                        alert('Failed to calculate Adipura score: ' + data.message);
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+            hitungAdipuraBtn.addEventListener('click', function() {
+                fetch('{{ route('assessment.calculate.orisinal') }}')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            nilaiOrisinal.textContent = data.nilai;
+                        } else {
+                            alert('Failed to calculate Adipura score: ' + data.message);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
             });
 
-            // Ketika button Hitung Adipura - NT diklik, ambil nilai dari session nilaiKoreksiAdipura
-            hitungAdipuraNTBtn.addEventListener('click', function () {
-                fetch('{{ route('assessment.calculate.koreksi') }}', {
-                    method: 'GET',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        nilaiKoreksi.textContent = data.nilai;
-                    } else {
-                        alert('Failed to calculate Adipura - NT score: ' + data.message);
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+            hitungAdipuraNTBtn.addEventListener('click', function() {
+                fetch('{{ route('assessment.calculate.koreksi') }}')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            nilaiKoreksi.textContent = data.nilai;
+                        } else {
+                            alert('Failed to calculate Adipura - NT score: ' + data.message);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
             });
         });
     </script>
